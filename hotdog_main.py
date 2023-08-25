@@ -3,10 +3,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import random
 import tensorflow as tf
-import tensorflow.python.keras
+from tensorflow import keras
+from keras import layers, models
 
 import tensorflow_datasets as tfds
 
+"""
+@inproceedings{bossard14,
+  title = {Food-101 -- Mining Discriminative Components with Random Forests},
+  author = {Bossard, Lukas and Guillaumin, Matthieu and Van Gool, Luc},
+  booktitle = {European Conference on Computer Vision},
+  year = {2014}
+}
+"""
 
 # getting data
 ds, ds_info = tfds.load('food101', shuffle_files=True, as_supervised=True, with_info=True)
@@ -43,4 +52,39 @@ for image, label in train_ds.take(3):
   print(image[0][0][0])
   print(label)
 
+
+# Neural Net
+data_augmentation = tf.keras.Sequential([
+  tf.keras.layers.RandomFlip('horizontal'),
+  tf.keras.layers.RandomRotation(0.2),
+])
+
+random.seed(0)
+model = models.Sequential()
+model.add(tf.keras.layers.Rescaling(1./255))
+model.add(data_augmentation)
+model.add(layers.Conv2D(128, (3, 3), activation='relu', input_shape=(MAX_SIDE_LEN, MAX_SIDE_LEN, 3)))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Dropout(0.25))
+model.add(layers.Conv2D(64, (3, 3), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l=0.01)))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Dropout(0.25))
+model.add(layers.Conv2D(32, (3, 3), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l=0.01)))
+model.add(layers.Flatten())
+model.add(layers.Dense(128, activation='relu'))
+model.add(layers.Dropout(0.25))
+model.add(layers.Dense(1))
+
+lr = 0.0001
+model.compile(optimizer=tf.keras.optimizers.Adam(lr),
+              loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+
+epochs=50
+history = model.fit(
+  train_ds,
+  validation_data=valid_ds,
+  epochs=epochs,
+  verbose=1
+)
 
